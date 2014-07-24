@@ -4,6 +4,12 @@
 #include <pwd.h>
 #include <grp.h>
 
+#define ERR_ARG (1)
+#define ERR_SYS (2)
+#define ERR_UID (3)
+
+#define DEF_NOBODY (65534)
+
 static void get_nobody(uid_t *puid, gid_t *pgid)
 {
     struct passwd *pw;
@@ -14,15 +20,11 @@ static void get_nobody(uid_t *puid, gid_t *pgid)
         return;
     }
 
-    *puid = *pgid = 65534;
+    *puid = *pgid = DEF_NOBODY;
 }
 
-int main(int argc, char **argv)
+static int set_nobody(void)
 {
-    if (argc != 2) {
-        return 64;
-    }
-
     uid_t uid;
     gid_t gid;
 
@@ -30,28 +32,60 @@ int main(int argc, char **argv)
 
     if (setgid(gid)) {
         perror("setgid");
-        return 1;
+        return ERR_SYS;
     }
 
     if (setgroups(1, &gid)) {
         perror("setgroups");
-        return 1;
+        return ERR_SYS;
     }
 
     if (setuid(uid) == -1) {
         perror("setuid");
-        return 1;
+        return ERR_SYS;
     }
 
     if (getuid() != uid  ||  geteuid() != uid) {
-        return 32;
+        return ERR_UID;
     }
 
-    int ret = system(argv[1]);
+    return EXIT_SUCCESS;
+}
 
-    if (ret == -1) {
-        perror("system");
+static int exec_proxy(int argc, char **argv)
+{
+    char **exec_argv = (char**) malloc(sizeof (char*) * (argc + 2));
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        exec_argv[i - 1] = argv[i];
     }
 
-    return ret;
+    exec_argv[argc] = NULL;
+
+    if (execvp(argv[1], exec_argv) == -1) {
+        perror("execv");
+        return ERR_SYS;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int main(int argc, char **argv)
+{
+    int ret;
+
+    if (argc < 2) {
+        return ERR_ARG;
+    }
+
+    if ((ret = set_nobody())) {
+        return ret;
+    }
+
+    if ((ret = exec_proxy(argc, argv))) {
+        return ret;
+    }
+
+    return EXIT_SUCCESS;
 }
