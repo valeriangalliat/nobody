@@ -65,6 +65,7 @@ static int exec_proxy(int argc, char **argv)
 
     if (execvp(argv[1], exec_argv) == -1) {
         perror("execv");
+        free(exec_argv);
         return ERR_SYS;
     }
 
