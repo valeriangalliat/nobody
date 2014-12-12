@@ -54,14 +54,14 @@ static int set_nobody(void)
 
 static int exec_proxy(int argc, char **argv)
 {
-    char **exec_argv = (char**) malloc(sizeof (char*) * (argc + 2));
+    char **exec_argv = (char**) malloc(sizeof (char*) * argc);
     int i;
 
     for (i = 1; i < argc; i++) {
         exec_argv[i - 1] = argv[i];
     }
 
-    exec_argv[argc] = NULL;
+    exec_argv[argc - 1] = NULL;
 
     if (execvp(argv[1], exec_argv) == -1) {
         perror("execv");
